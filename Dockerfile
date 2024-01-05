@@ -77,11 +77,13 @@ RUN --mount=type=bind,source=models_url.txt,target=/opt/rvc/models_url.txt \
   aria2c --console-log-level=error -c -x 16 -s 16 -k 1M -i models_url.txt
 
 FROM cuda as create_runtime
+USER root
 ARG DEBIAN_FRONTEND=noninteractive
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   --mount=type=cache,target=/var/lib/apt,sharing=locked \
   apt-get install -y ffmpeg \
   -y --no-install-recommends
+USER $USERNAME
 
 COPY --from=python_builder --chown=${USERNAME}:${GROUPNAME} /tmp/python /opt/python
 COPY --from=cloner --chown=${USERNAME}:${GROUPNAME} /opt/rvc/requirements.txt /tmp/requirements.txt
