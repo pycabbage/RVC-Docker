@@ -77,14 +77,6 @@ RUN --mount=type=bind,source=models_url.txt,target=/opt/rvc/models_url.txt \
   aria2c --console-log-level=error -c -x 16 -s 16 -k 1M -i models_url.txt
 
 FROM cuda as create_runtime
-USER root
-ARG DEBIAN_FRONTEND=noninteractive
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-  --mount=type=cache,target=/var/lib/apt,sharing=locked \
-  apt-get update && \
-  apt-get install -y ffmpeg -y --no-install-recommends
-USER $USERNAME
-
 COPY --from=python_builder --chown=${USERNAME}:${GROUPNAME} /tmp/python /opt/python
 COPY --from=cloner --chown=${USERNAME}:${GROUPNAME} /opt/rvc/requirements.txt /tmp/requirements.txt
 RUN /opt/python/bin/python3 -m venv --copies /opt/runtime
@@ -104,6 +96,15 @@ COPY --from=model_download --chown=${USERNAME}:${GROUPNAME} /opt/rvc /opt/rvc
 COPY --from=python_builder --chown=${USERNAME}:${GROUPNAME} /tmp/python /opt/python
 COPY --from=create_runtime --chown=${USERNAME}:${GROUPNAME} /opt/runtime /opt/runtime
 WORKDIR /opt/rvc
+
+# Install ffmpeg
+USER root
+ARG DEBIAN_FRONTEND=noninteractive
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt,sharing=locked \
+  apt-get update && \
+  apt-get install -y ffmpeg -y --no-install-recommends
+USER $USERNAME
 
 EXPOSE 7897
 ENV NVIDIA_DRIVER_CAPABILITIES=compute,graphics,utility
