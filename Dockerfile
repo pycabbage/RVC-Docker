@@ -97,11 +97,11 @@ RUN --mount=type=cache,target=$HOME/.cache/pip,sharing=locked \
 # install prebuilt wheels
 RUN --mount=type=cache,target=$HOME/.cache/pip,sharing=locked \
   . /opt/runtime/bin/activate && \
-  curl https://github.com/pycabbage/RVC-Docker/releases/download/wheel/fairseq-0.12.2-cp310-cp310-linux_x86_64.whl -kLo fairseq.whl && \
-  curl https://github.com/pycabbage/RVC-Docker/releases/download/wheel/pyworld-0.3.4-cp310-cp310-linux_x86_64.whl -kLo pyworld.whl && \
-  pip install ./fairseq.whl && \
-  pip install ./pyworld.whl && \
-  rm ./fairseq.whl ./pyworld.whl
+  curl https://github.com/pycabbage/RVC-Docker/releases/download/wheel/fairseq-0.12.2-cp310-cp310-linux_x86_64.whl -kLo /tmp/fairseq.whl && \
+  curl https://github.com/pycabbage/RVC-Docker/releases/download/wheel/pyworld-0.3.4-cp310-cp310-linux_x86_64.whl -kLo /tmp/pyworld.whl && \
+  pip install /tmp/fairseq.whl && \
+  pip install /tmp/pyworld.whl && \
+  rm /tmp/fairseq.whl /tmp/pyworld.whl
 # install requirements
 RUN --mount=type=cache,target=$HOME/.cache/pip,sharing=locked \
   . /opt/runtime/bin/activate && \
