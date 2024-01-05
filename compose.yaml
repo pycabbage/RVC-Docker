@@ -1,0 +1,9 @@
+services:
+  rvc:
+    build:
+      context: .
+      target: final
+    command: ["/bin/bash"]
+    runtime: nvidia
+    ports:
+      - 7897:7897

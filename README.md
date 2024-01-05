@@ -1,0 +1,6 @@
+# RVC in Docker
+
+```bash
+docker build . -t rvc
+docker run --rm --gpus all -it rvc:latest
+```
