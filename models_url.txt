@@ -1,0 +1,27 @@
+https://huggingface.co/lj1995/VoiceConversionWebUI/resolve/main/pretrained_v2/D40k.pth
+  dir=assets/pretrained_v2/
+  out=D40k.pth
+https://huggingface.co/lj1995/VoiceConversionWebUI/resolve/main/pretrained_v2/G40k.pth
+  dir=assets/pretrained_v2/
+  out=G40k.pth
+https://huggingface.co/lj1995/VoiceConversionWebUI/resolve/main/pretrained_v2/f0D40k.pth
+  dir=assets/pretrained_v2/
+  out=f0D40k.pth
+https://huggingface.co/lj1995/VoiceConversionWebUI/resolve/main/pretrained_v2/f0G40k.pth
+  dir=assets/pretrained_v2/
+  out=f0G40k.pth
+
+https://huggingface.co/lj1995/VoiceConversionWebUI/resolve/main/uvr5_weights/HP2-人声vocals+非人声instrumentals.pth
+  dir=assets/uvr5_weights/
+  out=HP2-人声vocals+非人声instrumentals.pth
+https://huggingface.co/lj1995/VoiceConversionWebUI/resolve/main/uvr5_weights/HP5-主旋律人声vocals+其他instrumentals.pth
+  dir=assets/uvr5_weights/
+  out=HP5-主旋律人声vocals+其他instrumentals.pth
+
+https://huggingface.co/lj1995/VoiceConversionWebUI/resolve/main/hubert_base.pt
+  dir=assets/hubert
+  out=hubert_base.pt
+
+https://huggingface.co/lj1995/VoiceConversionWebUI/resolve/main/rmvpe.pt
+  dir=assets/rmvpe
+  out=rmvpe.pt

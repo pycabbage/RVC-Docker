@@ -24,7 +24,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev \
   -y --no-install-recommends
 
-ARG PYTHON_VERSION=3.11.7
+ARG PYTHON_VERSION=3.10.13
 
 # Download python source
 RUN curl "https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz" -kLo /tmp/Python.tgz && \
@@ -45,7 +45,7 @@ RUN /tmp/Python-${PYTHON_VERSION}/configure \
 WORKDIR /tmp/python
 RUN rm -rf /tmp/build-python
 
-FROM nvidia/cuda:11.6.2-cudnn8-runtime-ubuntu20.04 as final
+FROM nvidia/cuda:11.6.2-cudnn8-runtime-ubuntu20.04 as cuda
 ARG USERNAME=rvc
 ARG GROUPNAME=rvc
 ARG UID=1000
@@ -54,11 +54,40 @@ RUN groupadd -g $GID $GROUPNAME && \
   useradd -m -s /bin/bash -u $UID -g $GID $USERNAME
 USER $USERNAME
 
+# COPY --from=python_builder --chown=${USERNAME}:${GROUPNAME} /tmp/python /opt/python
+# COPY --from=cloner --chown=${USERNAME}:${GROUPNAME} /opt/rvc /opt/rvc
+
+# Create runtime environment directory
+USER root
+RUN mkdir /opt/runtime && \
+  chown ${USERNAME}:${GROUPNAME} /opt/runtime
+USER $USERNAME
+
+FROM cuda as create_runtime
 COPY --from=python_builder --chown=${USERNAME}:${GROUPNAME} /tmp/python /opt/python
+COPY --from=cloner --chown=${USERNAME}:${GROUPNAME} /opt/rvc/requirements.txt /tmp/requirements.txt
+RUN /opt/python/bin/python3 -m venv /opt/runtime
+RUN . /opt/runtime/bin/activate && \
+  python3 -m pip install --upgrade pip && \
+  pip install -r /tmp/requirements.txt
+
+FROM base as model_download
 COPY --from=cloner --chown=${USERNAME}:${GROUPNAME} /opt/rvc /opt/rvc
 WORKDIR /opt/rvc
-RUN /opt/python/bin/python3 -m pip install --user --upgrade pip
-RUN /opt/python/bin/python3 -m pip install --user -r requirements.txt
+
+ARG DEBIAN_FRONTEND=noninteractive
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt,sharing=locked \
+  apt-get install aria2 ca-certificates \
+  -y --no-install-recommends
+
+RUN --mount=type=bind,source=models_url.txt,target=/opt/rvc/models_url.txt \
+  aria2c --console-log-level=error -c -x 16 -s 16 -k 1M -i models_url.txt
+
+FROM cuda as final
+COPY --from=create_runtime --chown=${USERNAME}:${GROUPNAME} /opt/runtime /opt/runtime
+COPY --from=model_download --chown=${USERNAME}:${GROUPNAME} /opt/rvc /opt/rvc
+WORKDIR /opt/rvc
 
 EXPOSE 7897
-CMD ["/opt/python/bin/python3"]
+CMD [ "/opt/runtime/bin/python3", "infer-web.py" ]
