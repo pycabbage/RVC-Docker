@@ -81,8 +81,8 @@ USER root
 ARG DEBIAN_FRONTEND=noninteractive
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   --mount=type=cache,target=/var/lib/apt,sharing=locked \
-  apt-get install -y ffmpeg \
-  -y --no-install-recommends
+  apt-get update && \
+  apt-get install -y ffmpeg -y --no-install-recommends
 USER $USERNAME
 
 COPY --from=python_builder --chown=${USERNAME}:${GROUPNAME} /tmp/python /opt/python
