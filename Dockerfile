@@ -80,7 +80,7 @@ FROM cuda as create_runtime
 ARG DEBIAN_FRONTEND=noninteractive
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   --mount=type=cache,target=/var/lib/apt,sharing=locked \
-  sudo apt-get install -y ffmpeg \
+  apt-get install -y ffmpeg \
   -y --no-install-recommends
 
 COPY --from=python_builder --chown=${USERNAME}:${GROUPNAME} /tmp/python /opt/python
@@ -91,8 +91,10 @@ RUN --mount=type=cache,target=$HOME/.cache/pip,sharing=locked \
   . /opt/runtime/bin/activate && \
   pip install torch torchvision torchaudio && \
   curl https://github.com/pycabbage/RVC-Docker/releases/download/wheel/fairseq-0.12.2-cp310-cp310-linux_x86_64.whl -kLo fairseq.whl && \
+  curl https://github.com/pycabbage/RVC-Docker/releases/download/wheel/pyworld-0.3.4-cp310-cp310-linux_x86_64.whl -kLo pyworld.whl && \
   pip install ./fairseq.whl && \
-  rm ./fairseq.whl && \
+  pip install ./pyworld.whl && \
+  rm ./fairseq.whl ./pyworld.whl && \
   pip install -r /tmp/requirements.txt
 
 FROM cuda as final
