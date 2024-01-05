@@ -25,9 +25,9 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   -y --no-install-recommends
 
 # ARG PYTHON_VERSION=3.11.7
-# ARG PYTHON_VERSION=3.10.13
+ARG PYTHON_VERSION=3.10.13
 # ARG PYTHON_VERSION=3.9.18
-ARG PYTHON_VERSION=3.8.18
+# ARG PYTHON_VERSION=3.8.18
 
 # Download python source
 RUN curl "https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz" -kLo /tmp/Python.tgz && \
@@ -89,6 +89,9 @@ RUN . /opt/runtime/bin/activate && python3 -m pip install --upgrade pip
 RUN --mount=type=cache,target=$HOME/.cache/pip,sharing=locked \
   . /opt/runtime/bin/activate && \
   pip install torch torchvision torchaudio && \
+  curl https://github.com/pycabbage/RVC-Docker/releases/download/wheel/fairseq-0.12.2-cp310-cp310-linux_x86_64.whl -kLo fairseq.whl && \
+  pip install ./fairseq.whl && \
+  rm ./fairseq.whl && \
   pip install -r /tmp/requirements.txt
 
 FROM cuda as final
