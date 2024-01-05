@@ -4,3 +4,7 @@
 docker build . -t rvc
 docker run --rm --gpus all -it rvc:latest
 ```
+
+```bash
+docker compose up -d
+```
