@@ -77,18 +77,34 @@ RUN --mount=type=bind,source=models_url.txt,target=/opt/rvc/models_url.txt \
   aria2c --console-log-level=error -c -x 16 -s 16 -k 1M -i models_url.txt
 
 FROM cuda as create_runtime
+# Install curl
+USER root
+ARG DEBIAN_FRONTEND=noninteractive
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt,sharing=locked \
+  apt-get update && \
+  apt-get install -y curl ca-certificates -y
+USER $USERNAME
+
 COPY --from=python_builder --chown=${USERNAME}:${GROUPNAME} /tmp/python /opt/python
 COPY --from=cloner --chown=${USERNAME}:${GROUPNAME} /opt/rvc/requirements.txt /tmp/requirements.txt
 RUN /opt/python/bin/python3 -m venv --copies /opt/runtime
 RUN . /opt/runtime/bin/activate && python3 -m pip install --upgrade pip
+# install pytorch
 RUN --mount=type=cache,target=$HOME/.cache/pip,sharing=locked \
   . /opt/runtime/bin/activate && \
-  pip install torch torchvision torchaudio && \
+  pip install torch torchvision torchaudio
+# install prebuilt wheels
+RUN --mount=type=cache,target=$HOME/.cache/pip,sharing=locked \
+  . /opt/runtime/bin/activate && \
   curl https://github.com/pycabbage/RVC-Docker/releases/download/wheel/fairseq-0.12.2-cp310-cp310-linux_x86_64.whl -kLo fairseq.whl && \
   curl https://github.com/pycabbage/RVC-Docker/releases/download/wheel/pyworld-0.3.4-cp310-cp310-linux_x86_64.whl -kLo pyworld.whl && \
   pip install ./fairseq.whl && \
   pip install ./pyworld.whl && \
-  rm ./fairseq.whl ./pyworld.whl && \
+  rm ./fairseq.whl ./pyworld.whl
+# install requirements
+RUN --mount=type=cache,target=$HOME/.cache/pip,sharing=locked \
+  . /opt/runtime/bin/activate && \
   pip install -r /tmp/requirements.txt
 
 FROM cuda as final
