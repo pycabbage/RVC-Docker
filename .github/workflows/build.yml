@@ -3,6 +3,8 @@ name: Build Docker Image
 on:
   push:
   pull_request:
+  release:
+    types: [created]
 
 concurrency: 
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -25,6 +27,10 @@ jobs:
       id: meta
       with:
         images: ${{ env.registry }}/${{ github.repository }}
+        tags: |
+          latest
+          ${{ github.sha }}
+          ${{ github.ref }}
     - uses: docker/login-action@v3
       with:
         registry: ${{ env.registry }}

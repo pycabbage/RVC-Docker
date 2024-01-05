@@ -3,7 +3,7 @@ services:
     build:
       context: .
       target: final
-    # image: 
+    image: ghcr.io/pycabbage/rvc-docker:latest
     command: ["/bin/bash"]
     runtime: nvidia
     ports:

@@ -78,8 +78,8 @@ COPY --from=python_builder --chown=${USERNAME}:${GROUPNAME} /tmp/python /opt/pyt
 COPY --from=cloner --chown=${USERNAME}:${GROUPNAME} /opt/rvc/requirements.txt /tmp/requirements.txt
 RUN /opt/python/bin/python3 -m venv --copies /opt/runtime
 RUN . /opt/runtime/bin/activate && python3 -m pip install --upgrade pip
-# RUN --mount=type=cache,target=$HOME/.cache/pip,sharing=locked \
-#   . /opt/runtime/bin/activate && pip install -r /tmp/requirements.txt
+RUN --mount=type=cache,target=$HOME/.cache/pip,sharing=locked \
+  . /opt/runtime/bin/activate && pip install -r /tmp/requirements.txt
 
 FROM cuda as final
 COPY --from=model_download --chown=${USERNAME}:${GROUPNAME} /opt/rvc /opt/rvc
