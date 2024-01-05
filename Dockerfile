@@ -73,7 +73,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   apt-get install aria2 ca-certificates \
   -y --no-install-recommends
 
-RUN --mount=type=bind,source=models_url.txt,target=/opt/rvc/models_url.txt \
+RUN --mount=type=bind,source=models_url.txt,target=/opt/rvc/models_url.txt,ro \
   aria2c --console-log-level=error -c -x 16 -s 16 -k 1M -i models_url.txt
 
 FROM cuda as create_runtime
@@ -97,11 +97,13 @@ RUN --mount=type=cache,target=$HOME/.cache/pip,sharing=locked \
 # install prebuilt wheels
 RUN --mount=type=cache,target=$HOME/.cache/pip,sharing=locked \
   . /opt/runtime/bin/activate && \
-  curl https://github.com/pycabbage/RVC-Docker/releases/download/wheel/fairseq-0.12.2-cp310-cp310-linux_x86_64.whl -kLo /tmp/fairseq.whl && \
-  curl https://github.com/pycabbage/RVC-Docker/releases/download/wheel/pyworld-0.3.4-cp310-cp310-linux_x86_64.whl -kLo /tmp/pyworld.whl && \
-  pip install /tmp/fairseq.whl && \
-  pip install /tmp/pyworld.whl && \
-  rm /tmp/fairseq.whl /tmp/pyworld.whl
+  curl https://github.com/pycabbage/RVC-Docker/releases/download/wheel/fairseq-0.12.2-cp310-cp310-linux_x86_64.whl \
+    -kLo /tmp/fairseq-0.12.2-cp310-cp310-linux_x86_64.whl && \
+  curl https://github.com/pycabbage/RVC-Docker/releases/download/wheel/pyworld-0.3.4-cp310-cp310-linux_x86_64.whl \
+    -kLo /tmp/pyworld-0.3.4-cp310-cp310-linux_x86_64.whl && \
+  pip install /tmp/fairseq-0.12.2-cp310-cp310-linux_x86_64.whl && \
+  pip install /tmp/pyworld-0.3.4-cp310-cp310-linux_x86_64.whl && \
+  rm /tmp/fairseq-0.12.2-cp310-cp310-linux_x86_64.whl /tmp/pyworld-0.3.4-cp310-cp310-linux_x86_64.whl
 # install requirements
 RUN --mount=type=cache,target=$HOME/.cache/pip,sharing=locked \
   . /opt/runtime/bin/activate && \
