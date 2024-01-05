@@ -3,6 +3,7 @@ services:
     build:
       context: .
       target: final
+    # image: 
     command: ["/bin/bash"]
     runtime: nvidia
     ports:
