@@ -102,7 +102,7 @@ RUN \
 RUN \
   --mount=type=bind,from=cloner,source=/opt/rvc/requirements.txt,target=/tmp/requirements.txt,ro \
   . /opt/runtime/bin/activate && \
-  pip install -r /tmp/requirements.txt
+  pip install --no-cache-dir -r /tmp/requirements.txt
 
 FROM cuda as final
 COPY --from=model_download --chown=${USERNAME}:${GROUPNAME} /opt/rvc /opt/rvc
