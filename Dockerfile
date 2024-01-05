@@ -87,7 +87,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 USER $USERNAME
 
 COPY --from=python_builder --chown=${USERNAME}:${GROUPNAME} /tmp/python /opt/python
-# COPY --from=cloner --chown=${USERNAME}:${GROUPNAME} /opt/rvc/requirements.txt /tmp/requirements.txt
 RUN /opt/python/bin/python3 -m venv --copies /opt/runtime
 RUN . /opt/runtime/bin/activate && python3 -m pip install --upgrade pip
 # install pytorch
