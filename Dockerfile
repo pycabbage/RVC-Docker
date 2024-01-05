@@ -92,14 +92,14 @@ RUN . /opt/runtime/bin/activate && python3 -m pip install --upgrade pip
 # install pytorch
 RUN \
   . /opt/runtime/bin/activate && \
-  pip install torch torchvision torchaudio
+  pip install --no-cache-dir torch torchvision torchaudio
 # install prebuilt wheels
 RUN \
   . /opt/runtime/bin/activate && \
   pip install https://github.com/pycabbage/RVC-Docker/releases/download/wheel/fairseq-0.12.2-cp310-cp310-linux_x86_64.whl && \
   pip install https://github.com/pycabbage/RVC-Docker/releases/download/wheel/pyworld-0.3.2-cp310-cp310-linux_x86_64.whl
 # install requirements
-RUN \
+#RUN \
   --mount=type=bind,from=cloner,source=/opt/rvc/requirements.txt,target=/tmp/requirements.txt,ro \
   . /opt/runtime/bin/activate && \
   pip install --no-cache-dir -r /tmp/requirements.txt
