@@ -63,14 +63,6 @@ RUN mkdir /opt/runtime && \
   chown ${USERNAME}:${GROUPNAME} /opt/runtime
 USER $USERNAME
 
-FROM cuda as create_runtime
-COPY --from=python_builder --chown=${USERNAME}:${GROUPNAME} /tmp/python /opt/python
-COPY --from=cloner --chown=${USERNAME}:${GROUPNAME} /opt/rvc/requirements.txt /tmp/requirements.txt
-RUN /opt/python/bin/python3 -m venv /opt/runtime
-RUN . /opt/runtime/bin/activate && \
-  python3 -m pip install --upgrade pip && \
-  pip install -r /tmp/requirements.txt
-
 FROM base as model_download
 COPY --from=cloner --chown=${USERNAME}:${GROUPNAME} /opt/rvc /opt/rvc
 WORKDIR /opt/rvc
@@ -83,6 +75,13 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 
 RUN --mount=type=bind,source=models_url.txt,target=/opt/rvc/models_url.txt \
   aria2c --console-log-level=error -c -x 16 -s 16 -k 1M -i models_url.txt
+
+FROM cuda as create_runtime
+COPY --from=python_builder --chown=${USERNAME}:${GROUPNAME} /tmp/python /opt/python
+COPY --from=cloner --chown=${USERNAME}:${GROUPNAME} /opt/rvc/requirements.txt /tmp/requirements.txt
+RUN /opt/python/bin/python3 -m venv /opt/runtime
+RUN . /opt/runtime/bin/activate && python3 -m pip install --upgrade pip
+# RUN . /opt/runtime/bin/activate && pip install -r /tmp/requirements.txt
 
 FROM cuda as final
 COPY --from=create_runtime --chown=${USERNAME}:${GROUPNAME} /opt/runtime /opt/runtime
