@@ -98,7 +98,7 @@ RUN --mount=type=cache,target=$HOME/.cache/pip,sharing=locked \
 RUN --mount=type=cache,target=$HOME/.cache/pip,sharing=locked \
   . /opt/runtime/bin/activate && \
   pip install https://github.com/pycabbage/RVC-Docker/releases/download/wheel/fairseq-0.12.2-cp310-cp310-linux_x86_64.whl && \
-  pip install https://github.com/pycabbage/RVC-Docker/releases/download/wheel/pyworld-0.3.4-cp310-cp310-linux_x86_64.whl
+  pip install https://github.com/pycabbage/RVC-Docker/releases/download/wheel/pyworld-0.3.2-cp310-cp310-linux_x86_64.whl
 # install requirements
 RUN --mount=type=cache,target=$HOME/.cache/pip,sharing=locked \
   --mount=type=bind,from=cloner,source=/opt/rvc/requirements.txt,target=/tmp/requirements.txt,ro \
