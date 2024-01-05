@@ -74,7 +74,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   -y --no-install-recommends
 
 RUN --mount=type=bind,source=models_url.txt,target=/opt/rvc/models_url.txt \
-  aria2c --console-log-level=error -c -x 16 -s 16 -k 1M -c -i models_url.txt
+  aria2c --console-log-level=error -c -x 16 -s 16 -k 1M -i models_url.txt
 
 FROM cuda as create_runtime
 ARG DEBIAN_FRONTEND=noninteractive
