@@ -41,8 +41,8 @@ jobs:
     - uses: docker/build-push-action@v5
       with:
         push: ${{ github.event_name != 'pull_request' }}
-        # キャッシュを有効にすると、GitHub Hosted Runnerのストレージ容量を超えてしまう
-        # cache-from: type=gha
-        # cache-to: type=gha,mode=max
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        target: final
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
