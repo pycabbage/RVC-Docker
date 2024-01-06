@@ -84,7 +84,7 @@ WORKDIR /opt/rvc
 # Install ffmpeg
 RUN --mount=type=bind,source=scripts/install-ffmpeg.sh,target=/tmp/install-ffmpeg.sh,ro \
   --mount=type=bind,from=download,source=/tmp/ffmpeg-n6.1.1-linux64-gpl-shared-6.1.tar.xz,target=/tmp/ffmpeg-n6.1.1-linux64-gpl-shared-6.1.tar.xz,ro \
-  . /tmp/install-ffmpeg.sh /tmp/ffmpeg-n6.1.1-linux64-gpl-shared-6.1.tar.xz
+  . /tmp/install-ffmpeg.sh "/tmp/ffmpeg-n6.1.1-linux64-gpl-shared-6.1.tar.xz"
 
 EXPOSE 7897
 ENV NVIDIA_DRIVER_CAPABILITIES=compute,graphics,utility
