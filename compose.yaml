@@ -3,8 +3,14 @@ services:
     build:
       context: .
       target: final
-    image: ghcr.io/pycabbage/rvc-docker:latest
-    command: ["/bin/bash"]
+      args:
+        - RVC_TAG=updated1006v2
+        - PYTHON_VERSION=3.10.13
+        - RUNTIME_USERNAME=rvc
+        - RUNTIME_GROUPNAME=rvc
+        - RUNTIME_UID=1000
+        - RUNTIME_GID=1000
+    image: ghcr.io/pycabbage/rvc-docker:master
     runtime: nvidia
     ports:
       - 7897:7897
