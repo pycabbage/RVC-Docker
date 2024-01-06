@@ -24,17 +24,17 @@ env:
   DOCKER_BUILDKIT: 1
   RVC_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || 'updated1006v2' }}
   PYTHON_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.python_version || '3.10.13' }}
+  DOCKER_REGISTRY: ghcr.io
+  DOCKER_USERNAME: ${{ github.actor }}
+  DOCKER_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   build:
+    name: Build Docker Image
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-    env:
-      registry: ghcr.io
-      username: ${{ github.actor }}
-      password: ${{ secrets.GITHUB_TOKEN }}
     steps:
     - uses: actions/checkout@v3
     - uses: docker/setup-qemu-action@v3
@@ -42,7 +42,7 @@ jobs:
     - uses: docker/metadata-action@v5
       id: meta
       with:
-        images: ${{ env.registry }}/${{ github.repository }}
+        images: ${{ env.DOCKER_REGISTRY }}/${{ github.repository }}
         tags: |
           latest
           ${{ github.sha }}
@@ -51,9 +51,9 @@ jobs:
           ${{ env.RVC_TAG }}-${{ env.PYTHON_VERSION }}
     - uses: docker/login-action@v3
       with:
-        registry: ${{ env.registry }}
-        username: ${{ env.username }}
-        password: ${{ env.password }}
+        registry: ${{ env.DOCKER_REGISTRY }}
+        username: ${{ env.DOCKER_USERNAME }}
+        password: ${{ env.DOCKER_PASSWORD }}
     - uses: docker/build-push-action@v5
       with:
         pull: true
@@ -63,7 +63,6 @@ jobs:
         target: final
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        platforms: linux/amd64,linux/arm64
         build-args: |
           RVC_TAG=${{ env.RVC_TAG }}
           PYTHON_VERSION=${{ env.PYTHON_VERSION }}
@@ -71,3 +70,31 @@ jobs:
           RUNTIME_GROUPNAME=rvc
           RUNTIME_UID=1000
           RUNTIME_GID=1000
+  container-export:
+    name: Export Docker Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    needs: build
+    steps:
+    - uses: actions/checkout@v3
+    - uses: docker/login-action@v3
+      with:
+        registry: ${{ env.DOCKER_REGISTRY }}
+        username: ${{ env.DOCKER_USERNAME }}
+        password: ${{ env.DOCKER_PASSWORD }}
+    - name: Image name
+      id: image
+      run: |
+        echo "name=${{ env.DOCKER_REGISTRY }}/${{ github.repository }}:${{ env.RVC_TAG }}-${{ env.PYTHON_VERSION }}" >> $GITHUB_OUTPUT
+        echo "filename=rvc_${{ env.RVC_TAG }}-${{ env.PYTHON_VERSION }}.tar" >> $GITHUB_OUTPUT
+    - name: Pull and save image
+      run: |
+        docker pull "${{ steps.image.outputs.name }}"
+        docker save "${{ steps.image.outputs.name }}" > "${{ steps.image.outputs.filename }}"
+    - name: Upload image artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.image.outputs.filename }}
+        path: ${{ steps.image.outputs.filename }}
