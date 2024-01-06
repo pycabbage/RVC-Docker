@@ -40,6 +40,7 @@ jobs:
         password: ${{ env.password }}
     - uses: docker/build-push-action@v5
       with:
+        pull: true
         push: ${{ github.event_name != 'pull_request' }}
         cache-from: type=gha
         cache-to: type=gha,mode=max

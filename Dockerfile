@@ -73,8 +73,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   apt-get install aria2 ca-certificates \
   -y --no-install-recommends
 
-RUN --mount=type=bind,source=models_url.txt,target=/opt/rvc/models_url.txt,ro \
-  aria2c --console-log-level=error -c -x 16 -s 16 -k 1M -i models_url.txt
+# RUN --mount=type=bind,source=models_url.txt,target=/opt/rvc/models_url.txt,ro \
+#   aria2c --console-log-level=error -c -x 16 -s 16 -k 1M -i models_url.txt
 
 FROM cuda as create_runtime
 # Install curl
@@ -90,12 +90,12 @@ COPY --from=python_builder --chown=${USERNAME}:${GROUPNAME} /tmp/python /opt/pyt
 RUN /opt/python/bin/python3 -m venv --copies /opt/runtime
 RUN . /opt/runtime/bin/activate && python3 -m pip install --upgrade --no-cache-dir pip
 # install pytorch
-RUN . /opt/runtime/bin/activate && \
-  pip install --no-cache-dir torch torchvision torchaudio
+# RUN . /opt/runtime/bin/activate && \
+#   pip install --no-cache-dir torch torchvision torchaudio
 # install prebuilt wheels
-RUN . /opt/runtime/bin/activate && \
-  pip install --no-cache-dir https://github.com/pycabbage/RVC-Docker/releases/download/wheel/fairseq-0.12.2-cp310-cp310-linux_x86_64.whl && \
-  pip install --no-cache-dir https://github.com/pycabbage/RVC-Docker/releases/download/wheel/pyworld-0.3.2-cp310-cp310-linux_x86_64.whl
+# RUN . /opt/runtime/bin/activate && \
+#   pip install --no-cache-dir https://github.com/pycabbage/RVC-Docker/releases/download/wheel/fairseq-0.12.2-cp310-cp310-linux_x86_64.whl && \
+#   pip install --no-cache-dir https://github.com/pycabbage/RVC-Docker/releases/download/wheel/pyworld-0.3.2-cp310-cp310-linux_x86_64.whl
 # install requirements
 # RUN \
 #   --mount=type=bind,from=cloner,source=/opt/rvc/requirements.txt,target=/tmp/requirements.txt,ro \
