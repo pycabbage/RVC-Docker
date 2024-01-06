@@ -68,7 +68,7 @@ RUN --mount=type=bind,from=python_builder,source=/tmp/python,target=/opt/python 
   --mount=type=bind,from=cloner,source=/opt/rvc/requirements.txt,target=/tmp/requirements.txt,ro \
   --mount=type=bind,source=scripts/create-runtme.sh,target=/tmp/create-runtme.sh,ro \
   . /tmp/create-runtme.sh \
-    /opt/runtime/bin/python3 \
+    /opt/python/bin/python3 \
     /opt/runtime \
     /tmp/requirements.txt 
 

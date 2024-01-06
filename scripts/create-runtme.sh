@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-PYTHON_PATH=${1:-"/opt/runtime/bin/python3"}
+PYTHON_PATH=${1:-"/opt/python/bin/python3"}
 RUNTIME_PATH=${2:-"/opt/runtime"}
 REQUIREMENTS_PATH=${3:-"/tmp/requirements.txt"}
 
