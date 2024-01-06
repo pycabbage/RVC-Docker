@@ -1,14 +1,14 @@
 # syntax=docker/dockerfile:1
 
+ARG RVC_TAG="updated1006v2"
+
 FROM ubuntu:22.04 as base
-RUN DEBIAN_FRONTEND=noninteractive && \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt,sharing=locked \
+  DEBIAN_FRONTEND=noninteractive && \
   apt-get update -qq && \
   apt-get install -y --no-install-recommends -qq \
-  git curl aria2 ca-certificates
-
-FROM base as cloner
-ARG RVC_TAG="updated1006v2"
-RUN git clone https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI.git --branch ${RVC_TAG} --depth 1 /opt/rvc
+  git curl aria2 ca-certificates unzip
 
 FROM base as python_builder
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
@@ -46,7 +46,11 @@ RUN mkdir /opt/runtime && \
 USER $RUNTIME_USERNAME
 
 FROM base as download
-COPY --from=cloner --chown=${USERNAME}:${GROUPNAME} /opt/rvc /opt/rvc
+RUN aria2c -x16 -s16 -c --dir /tmp -o rvc.zip \
+  "https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI/archive/refs/tags/${RVC_TAG}.zip" && \
+  unzip -q /tmp/rvc.zip -d /opt &&  \
+  mv /opt/Retrieval-based-Voice-Conversion-WebUI-${RVC_TAG} /opt/rvc && \
+  rm -rf /tmp/rvc.zip
 WORKDIR /opt/rvc
 
 RUN --mount=type=bind,source=models_url.txt,target=/opt/rvc/models_url.txt,ro \
@@ -68,7 +72,7 @@ USER $USERNAME
 
 # Create runtime
 RUN --mount=type=bind,from=python_builder,source=/tmp/python,target=/opt/python \
-  --mount=type=bind,from=cloner,source=/opt/rvc/requirements.txt,target=/tmp/requirements.txt,ro \
+  --mount=type=bind,from=download,source=/opt/rvc/requirements.txt,target=/tmp/requirements.txt,ro \
   --mount=type=bind,source=scripts/create-runtme.sh,target=/tmp/create-runtme.sh,ro \
   . /tmp/create-runtme.sh \
     /opt/python/bin/python3 \
