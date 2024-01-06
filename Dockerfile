@@ -4,8 +4,8 @@ FROM ubuntu:22.04 as base
 ARG DEBIAN_FRONTEND=noninteractive
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   --mount=type=cache,target=/var/lib/apt,sharing=locked \
-  apt-get update && \
-  apt-get install -y --no-install-recommends \
+  apt-get update -qq && \
+  apt-get install -y --no-install-recommends -qq \
   git curl aria2 ca-certificates
 
 FROM base as cloner
@@ -18,7 +18,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   apt-get install build-essential libssl-dev zlib1g-dev \
   libbz2-dev libreadline-dev libsqlite3-dev curl \
   libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev \
-  -y --no-install-recommends
+  -y --no-install-recommends -qq
 
 # ARG PYTHON_VERSION=3.11.7
 ARG PYTHON_VERSION=3.10.13
@@ -46,7 +46,7 @@ RUN mkdir /opt/runtime && \
 
 USER $RUNTIME_USERNAME
 
-FROM base as model_download
+FROM base as download
 COPY --from=cloner --chown=${USERNAME}:${GROUPNAME} /opt/rvc /opt/rvc
 WORKDIR /opt/rvc
 
@@ -54,7 +54,7 @@ RUN --mount=type=bind,source=models_url.txt,target=/opt/rvc/models_url.txt,ro \
   # Download models
   aria2c --console-log-level=error -c -x 16 -s 16 -k 1M -i models_url.txt && \
   # Download ffmpeg
-  aria2c -x16 -s16 -c --dir /tmp \
+  aria2c -x16 -s16 -c --dir /tmp -o ffmpeg-n6.1.1-linux64-gpl-shared-6.1.tar.xz \
   "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2024-01-05-12-55/ffmpeg-n6.1.1-linux64-gpl-shared-6.1.tar.xz"
 
 FROM cuda as create_runtime
@@ -62,8 +62,8 @@ FROM cuda as create_runtime
 USER root
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   --mount=type=cache,target=/var/lib/apt,sharing=locked \
-  apt-get update && \
-  apt-get install -y curl ca-certificates -y
+  apt-get update -qq && \
+  apt-get install -y curl ca-certificates -y -qq
 USER $USERNAME
 
 # Create runtime
@@ -76,14 +76,14 @@ RUN --mount=type=bind,from=python_builder,source=/tmp/python,target=/opt/python 
     /tmp/requirements.txt 
 
 FROM cuda as final
-COPY --from=model_download --chown=${USERNAME}:${GROUPNAME} /opt/rvc /opt/rvc
+COPY --from=download --chown=${USERNAME}:${GROUPNAME} /opt/rvc /opt/rvc
 COPY --from=python_builder --chown=${USERNAME}:${GROUPNAME} /tmp/python /opt/python
 COPY --from=create_runtime --chown=${USERNAME}:${GROUPNAME} /opt/runtime /opt/runtime
 WORKDIR /opt/rvc
 
 # Install ffmpeg
 RUN --mount=type=bind,source=scripts/install-ffmpeg.sh,target=/tmp/install-ffmpeg.sh,ro \
-  --mount=type=bind,from=model_download,source=/tmp/ffmpeg-n6.1.1-linux64-gpl-shared-6.1.tar.xz,target=/tmp/ffmpeg-n6.1.1-linux64-gpl-shared-6.1.tar.xz,ro \
+  --mount=type=bind,from=download,source=/tmp/ffmpeg-n6.1.1-linux64-gpl-shared-6.1.tar.xz,target=/tmp/ffmpeg-n6.1.1-linux64-gpl-shared-6.1.tar.xz,ro \
   . /tmp/install-ffmpeg.sh /tmp/ffmpeg-n6.1.1-linux64-gpl-shared-6.1.tar.xz
 
 EXPOSE 7897

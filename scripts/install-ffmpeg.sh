@@ -5,5 +5,6 @@ ARCHIVE_EXTRACT_DIR="${ARCHIVE_PATH%\.tar\.*}"
 
 echo "Installing ffmpeg from ${ARCHIVE_PATH}"
 
-tar axf "${ARCHIVE_PATH}" -C /tmp
-mv -r "${ARCHIVE_EXTRACT_DIR}/*" $HOME/.local
+ls -l /tmp
+tar axf "${ARCHIVE_PATH}" -C $HOME/.local
+# mv -r "${ARCHIVE_EXTRACT_DIR}/*" $HOME/.local
