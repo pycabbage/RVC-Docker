@@ -1,9 +1,7 @@
 # syntax=docker/dockerfile:1
 
 FROM ubuntu:22.04 as base
-ARG DEBIAN_FRONTEND=noninteractive
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-  --mount=type=cache,target=/var/lib/apt,sharing=locked \
+RUN DEBIAN_FRONTEND=noninteractive && \
   apt-get update -qq && \
   apt-get install -y --no-install-recommends -qq \
   git curl aria2 ca-certificates
@@ -15,6 +13,7 @@ RUN git clone https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-We
 FROM base as python_builder
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   --mount=type=cache,target=/var/lib/apt,sharing=locked \
+  DEBIAN_FRONTEND=noninteractive && \
   apt-get install build-essential libssl-dev zlib1g-dev \
   libbz2-dev libreadline-dev libsqlite3-dev curl \
   libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev \
@@ -62,6 +61,7 @@ FROM cuda as create_runtime
 USER root
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   --mount=type=cache,target=/var/lib/apt,sharing=locked \
+  DEBIAN_FRONTEND=noninteractive && \
   apt-get update -qq && \
   apt-get install -y curl ca-certificates -y -qq
 USER $USERNAME
@@ -84,7 +84,8 @@ WORKDIR /opt/rvc
 # Install ffmpeg
 RUN --mount=type=bind,source=scripts/install-ffmpeg.sh,target=/tmp/install-ffmpeg.sh,ro \
   --mount=type=bind,from=download,source=/tmp/ffmpeg-n6.1.1-linux64-gpl-shared-6.1.tar.xz,target=/tmp/ffmpeg-n6.1.1-linux64-gpl-shared-6.1.tar.xz,ro \
-  . /tmp/install-ffmpeg.sh "/tmp/ffmpeg-n6.1.1-linux64-gpl-shared-6.1.tar.xz"
+  set -xe && \
+  tar axf "/tmp/ffmpeg-n6.1.1-linux64-gpl-shared-6.1.tar.xz" -C "$HOME/.local"
 
 EXPOSE 7897
 ENV NVIDIA_DRIVER_CAPABILITIES=compute,graphics,utility
