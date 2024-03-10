@@ -59,8 +59,8 @@ RUN ./configure --with-ensurepip --enable-optimizations --enable-shared --prefix
   cd .. && rm -fr "Python-${PYTHON_VERSION}"
 WORKDIR /tmp
 
-# FROM base as cuda
-FROM nvidia/cuda:11.6.2-cudnn8-runtime-ubuntu20.04 as cuda_base
+FROM ubuntu:20.04 as cuda_base
+# FROM nvidia/cuda:11.6.2-cudnn8-runtime-ubuntu20.04 as cuda_base
 
 ARG USERNAME
 ARG PYTHON_VERSION
