@@ -14,7 +14,7 @@ on:
       python_version:
         description: 'Python version to build'
         required: true
-        default: "3.10.13"
+        default: "3.9.18"
 
 concurrency: 
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -23,7 +23,7 @@ concurrency:
 env:
   DOCKER_BUILDKIT: 1
   RVC_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || 'updated1006v2' }}
-  PYTHON_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.python_version || '3.10.13' }}
+  PYTHON_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.python_version || '3.9.18' }}
   DOCKER_REGISTRY: ghcr.io
   DOCKER_USERNAME: ${{ github.actor }}
   DOCKER_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
@@ -36,7 +36,7 @@ jobs:
       contents: read
       packages: write
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: docker/setup-qemu-action@v3
     - uses: docker/setup-buildx-action@v3
     - uses: docker/metadata-action@v5
@@ -65,11 +65,8 @@ jobs:
         labels: ${{ steps.meta.outputs.labels }}
         build-args: |
           RVC_TAG=${{ env.RVC_TAG }}
+          USERNAME=rvc
           PYTHON_VERSION=${{ env.PYTHON_VERSION }}
-          RUNTIME_USERNAME=rvc
-          RUNTIME_GROUPNAME=rvc
-          RUNTIME_UID=1000
-          RUNTIME_GID=1000
   container-export:
     name: Export Docker Image
     runs-on: ubuntu-latest
@@ -78,7 +75,7 @@ jobs:
       packages: read
     needs: build
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: docker/login-action@v3
       with:
         registry: ${{ env.DOCKER_REGISTRY }}
@@ -92,7 +89,7 @@ jobs:
     - name: Pull and save image
       run: |
         docker pull "${{ steps.image.outputs.name }}"
-        docker save "${{ steps.image.outputs.name }}" > "${{ steps.image.outputs.filename }}"
+        docker save "${{ steps.image.outputs.name }}" -o "${{ steps.image.outputs.filename }}"
     - name: Upload image artifact
       uses: actions/upload-artifact@v4
       with:

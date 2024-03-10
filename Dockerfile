@@ -1,96 +1,118 @@
 # syntax=docker/dockerfile:1
 
-ARG RVC_TAG="updated1006v2"
+ARG PYTHON_VERSION=3.9.18
+ARG USERNAME="rvc"
 
-FROM ubuntu:22.04 as base
+FROM ubuntu:20.04 as base
+ARG DEBIAN_FRONTEND=noninteractive
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   --mount=type=cache,target=/var/lib/apt,sharing=locked \
-  DEBIAN_FRONTEND=noninteractive && \
-  apt-get update -qq && \
-  apt-get install -y --no-install-recommends -qq \
-  git curl aria2 ca-certificates unzip
-
-FROM base as python_builder
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-  --mount=type=cache,target=/var/lib/apt,sharing=locked \
-  DEBIAN_FRONTEND=noninteractive && \
-  apt-get install build-essential libssl-dev zlib1g-dev \
+  apt-get update && \
+  apt-get install -y \
+  build-essential libssl-dev zlib1g-dev \
   libbz2-dev libreadline-dev libsqlite3-dev curl \
   libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev \
-  -y --no-install-recommends -qq
+  sudo git aria2
+ARG USERNAME
+RUN --mount=type=bind,source=scripts/add-nonroot-user.sh,target=/tmp/add-nonroot-user.sh \
+  bash /tmp/add-nonroot-user.sh "${USERNAME}"
 
-# ARG PYTHON_VERSION=3.11.7
-ARG PYTHON_VERSION=3.10.13
-# ARG PYTHON_VERSION=3.9.18
-# ARG PYTHON_VERSION=3.8.18
+# Download ffmpeg and pretrained models and repo
+FROM base as downloader
+ARG RVC_TAG="updated1006v2"
+ARG RVC_REPO="https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI"
+WORKDIR /tmp
+RUN curl -kLo "ffmpeg.tar.xz" \
+  "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n6.1-latest-linux64-lgpl-shared-6.1.tar.xz" && \
+  tar axf "ffmpeg.tar.xz" && \
+  mv ffmpeg-* /opt/ffmpeg && \
+  chown -R ${USERNAME}:${USERNAME} /opt/ffmpeg && \
+  rm "ffmpeg.tar.xz"
+# Download repo
+USER root
+WORKDIR /
+RUN git clone --depth 1 -b "${RVC_TAG}" "${RVC_REPO}" /app && \
+  chown -R ${USERNAME}:${USERNAME} /app
+# Download pretrained models
+WORKDIR /app
+RUN mkdir assets/pretrained_v2 assets/uvr5_weights assets/hubert assets/rmvpe -p
+RUN --mount=type=bind,source=pretrained_models.txt,target=/tmp/pretrained_models.txt \
+  aria2c --console-log-level=error -c -x 16 -s 16 -k 1M -i /tmp/pretrained_models.txt
 
 # Build python
-RUN --mount=type=bind,source=scripts/build-python.sh,target=/tmp/build-python.sh,ro \
-  . /tmp/build-python.sh \
-    "/tmp/python" \
-    "${PYTHON_VERSION}"
+FROM base as python_builder
+ARG PYTHON_VERSION
 
-FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04 as cuda
-# Add non-root user
-ARG RUNTIME_USERNAME=rvc
-ARG RUNTIME_GROUPNAME=rvc
-ARG RUNTIME_UID=1000
-ARG RUNTIME_GID=1000
-RUN groupadd -g $RUNTIME_GID $RUNTIME_GROUPNAME && \
-  useradd -m -s /bin/bash -u $RUNTIME_UID -g $RUNTIME_GID $RUNTIME_USERNAME
+USER ${USERNAME}
+WORKDIR /tmp
+RUN curl -kLO "https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tar.xz" && \
+  tar axf "Python-${PYTHON_VERSION}.tar.xz" && \
+  rm "Python-${PYTHON_VERSION}.tar.xz"
 
-# Create runtime environment directory
-RUN mkdir /opt/runtime && \
-  chown ${RUNTIME_USERNAME}:${RUNTIME_GROUPNAME} /opt/runtime
-
-USER $RUNTIME_USERNAME
-
-FROM base as download
-RUN aria2c -x16 -s16 -c --dir /tmp -o rvc.zip \
-  "https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI/archive/refs/tags/${RVC_TAG}.zip" && \
-  unzip -q /tmp/rvc.zip -d /opt &&  \
-  mv /opt/Retrieval-based-Voice-Conversion-WebUI-${RVC_TAG} /opt/rvc && \
-  rm -rf /tmp/rvc.zip
-WORKDIR /opt/rvc
-
-RUN --mount=type=bind,source=models_url.txt,target=/opt/rvc/models_url.txt,ro \
-  # Download models
-  aria2c --console-log-level=error -c -x 16 -s 16 -k 1M -i models_url.txt && \
-  # Download ffmpeg
-  aria2c -x16 -s16 -c --dir /tmp -o ffmpeg-n6.1.1-linux64-gpl-shared-6.1.tar.xz \
-  "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2024-01-05-12-55/ffmpeg-n6.1.1-linux64-gpl-shared-6.1.tar.xz"
-
-FROM cuda as create_runtime
-# Install curl
+WORKDIR /tmp/Python-${PYTHON_VERSION}
 USER root
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-  --mount=type=cache,target=/var/lib/apt,sharing=locked \
-  DEBIAN_FRONTEND=noninteractive && \
-  apt-get update -qq && \
-  apt-get install -y curl ca-certificates -y -qq
-USER $USERNAME
+# RUN ./configure --with-lto --with-ensurepip --enable-optimizations --enable-shared --prefix="/opt/python${PYTHON_VERSION}" && \
+RUN ./configure --with-ensurepip --enable-optimizations --enable-shared --prefix="/opt/python${PYTHON_VERSION}" && \
+  make -j$(nproc) && \
+  make install && \
+  chown -R ${USERNAME}:${USERNAME} "/opt/python${PYTHON_VERSION}" && \
+  cd .. && rm -fr "Python-${PYTHON_VERSION}"
+WORKDIR /tmp
 
-# Create runtime
-RUN --mount=type=bind,from=python_builder,source=/tmp/python,target=/opt/python \
-  --mount=type=bind,from=download,source=/opt/rvc/requirements.txt,target=/tmp/requirements.txt,ro \
-  --mount=type=bind,source=scripts/create-runtme.sh,target=/tmp/create-runtme.sh,ro \
-  . /tmp/create-runtme.sh \
-    /opt/python/bin/python3 \
-    /opt/runtime \
-    /tmp/requirements.txt 
+# FROM base as cuda
+FROM nvidia/cuda:11.6.2-cudnn8-runtime-ubuntu20.04 as cuda_base
 
-FROM cuda as final
-COPY --from=download --chown=${USERNAME}:${GROUPNAME} /opt/rvc /opt/rvc
-COPY --from=python_builder --chown=${USERNAME}:${GROUPNAME} /tmp/python /opt/python
-COPY --from=create_runtime --chown=${USERNAME}:${GROUPNAME} /opt/runtime /opt/runtime
-WORKDIR /opt/rvc
+ARG USERNAME
+ARG PYTHON_VERSION
 
-# Install ffmpeg
-RUN --mount=type=bind,source=scripts/install-ffmpeg.sh,target=/tmp/install-ffmpeg.sh,ro \
-  --mount=type=bind,from=download,source=/tmp/ffmpeg-n6.1.1-linux64-gpl-shared-6.1.tar.xz,target=/tmp/ffmpeg-n6.1.1-linux64-gpl-shared-6.1.tar.xz,ro \
-  set -xe && \
-  tar axf "/tmp/ffmpeg-n6.1.1-linux64-gpl-shared-6.1.tar.xz" -C "$HOME/.local"
+USER root
+# add nonroot user
+RUN --mount=type=bind,source=scripts/add-nonroot-user.sh,target=/tmp/add-nonroot-user.sh \
+  bash /tmp/add-nonroot-user.sh "${USERNAME}"
+# Copy python
+COPY --from=python_builder --chown=${USERNAME}:${USERNAME} \
+  /opt/python${PYTHON_VERSION} /opt/python${PYTHON_VERSION}
+RUN echo "/opt/python${PYTHON_VERSION}/lib" > /etc/ld.so.conf.d/libpython.conf && \
+  ldconfig
+# Copy repo
+COPY --from=downloader --chown=${USERNAME}:${USERNAME} \
+  /app /app
+WORKDIR /app
+ENV PATH="/opt/python${PYTHON_VERSION}/bin:/opt/ffmpeg/bin:${PATH}"
 
-EXPOSE 7897
-ENV NVIDIA_DRIVER_CAPABILITIES=compute,graphics,utility
-CMD [ "/opt/runtime/bin/python3", "infer-web.py" ]
+FROM cuda_base as venv_builder
+
+ARG USERNAME
+ARG PYTHON_VERSION
+
+RUN --mount=type=cache,target=${HOME}/.cache/pip,sharing=locked \
+  python3 -m pip install -U pip && \
+  python3 -m venv venv
+RUN --mount=type=cache,target=${HOME}/.cache/pip,sharing=locked \
+  . ./venv/bin/activate && \
+  ./venv/bin/python3 -m pip install -U pip && \
+  PYTHON_VERSION_CODE=$(python3 -c 'from sys import version_info;print("cp{}{}".format(version_info.major,version_info.minor))') && \
+  ./venv/bin/pip install --no-cache-dir https://github.com/pycabbage/RVC-Docker/releases/download/wheel/fairseq-0.12.2-${PYTHON_VERSION_CODE}-${PYTHON_VERSION_CODE}-linux_x86_64.whl && \
+  ./venv/bin/pip install --no-cache-dir https://github.com/pycabbage/RVC-Docker/releases/download/wheel/pyworld-0.3.2-${PYTHON_VERSION_CODE}-${PYTHON_VERSION_CODE}-linux_x86_64.whl
+RUN --mount=type=cache,target=${HOME}/.cache/pip,sharing=locked \
+  . ./venv/bin/activate && \
+  ./venv/bin/pip install -U -r requirements.txt
+
+FROM cuda_base as final
+
+ARG USERNAME
+ARG PYTHON_VERSION
+
+COPY --from=downloader --chown=${USERNAME}:${USERNAME} \
+  /opt/ffmpeg /opt/ffmpeg
+# COPY --from=downloader --chown=${USERNAME}:${USERNAME} \
+#   /app /app
+COPY --from=venv_builder --chown=${USERNAME}:${USERNAME} \
+  /app/venv /app/venv
+
+USER ${USERNAME}
+EXPOSE 7865
+# WORKDIR /app
+
+VOLUME [ "/app/weights", "/app/opt" ]
+CMD ["/app/venv/bin/python3", "infer-web.py"]
