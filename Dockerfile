@@ -92,19 +92,20 @@ ARG RUNTIME_USERNAME
 ARG PYTHON_VERSION
 
 RUN --mount=type=cache,target=${HOME}/.cache/pip,sharing=locked \
-  python3 -m pip install -U pip && \
-  python3 -m venv venv
+  python3 -m pip install -U pip virtualenv && \
+  python3 -m virtualenv --download --setuptools bundle --wheel bundle --activators bash venv
 RUN --mount=type=cache,target=${HOME}/.cache/pip,sharing=locked \
   . ./venv/bin/activate && \
   ./venv/bin/python3 -m pip install -U pip && \
   PYTHON_VERSION_CODE=$(python3 -c 'from sys import version_info;print("cp{}{}".format(version_info.major,version_info.minor))') && \
-  ./venv/bin/pip install --no-cache-dir https://github.com/pycabbage/RVC-Docker/releases/download/wheel/fairseq-0.12.2-${PYTHON_VERSION_CODE}-${PYTHON_VERSION_CODE}-linux_x86_64.whl && \
-  ./venv/bin/pip install --no-cache-dir https://github.com/pycabbage/RVC-Docker/releases/download/wheel/pyworld-0.3.2-${PYTHON_VERSION_CODE}-${PYTHON_VERSION_CODE}-linux_x86_64.whl
+  ./venv/bin/pip install https://github.com/pycabbage/RVC-Docker/releases/download/wheel/fairseq-0.12.2-${PYTHON_VERSION_CODE}-${PYTHON_VERSION_CODE}-linux_x86_64.whl && \
+  ./venv/bin/pip install https://github.com/pycabbage/RVC-Docker/releases/download/wheel/pyworld-0.3.2-${PYTHON_VERSION_CODE}-${PYTHON_VERSION_CODE}-linux_x86_64.whl
 RUN --mount=type=cache,target=${HOME}/.cache/pip,sharing=locked \
   . ./venv/bin/activate && \
-  ./venv/bin/pip install -U -r requirements.txt
+  ./venv/bin/pip install --no-cache-dir --no-color --no-input -U -r requirements.txt && \
+  du -sh ./venv
 
-FROM cuda_base as final
+FROM venv_builder as final
 
 ARG RUNTIME_USERNAME
 ARG PYTHON_VERSION
@@ -113,12 +114,12 @@ COPY --from=downloader --chown=${RUNTIME_USERNAME}:${RUNTIME_USERNAME} \
   /opt/ffmpeg /opt/ffmpeg
 # COPY --from=downloader --chown=${RUNTIME_USERNAME}:${RUNTIME_USERNAME} \
 #   /app /app
-COPY --from=venv_builder --chown=${RUNTIME_USERNAME}:${RUNTIME_USERNAME} \
-  /app/venv /app/venv
+# COPY --from=venv_builder --chown=${RUNTIME_USERNAME}:${RUNTIME_USERNAME} \
+#   /app/venv /app/venv
 
 USER ${RUNTIME_USERNAME}
 EXPOSE 7865
-# WORKDIR /app
+WORKDIR /app
 
 VOLUME [ \
   "/app/assets", \
