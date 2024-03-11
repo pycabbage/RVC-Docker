@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 ARG PYTHON_VERSION=3.9.18
-ARG USERNAME="rvc"
+ARG RUNTIME_USERNAME="rvc"
 
 FROM ubuntu:20.04 as base
 ARG DEBIAN_FRONTEND=noninteractive
@@ -13,9 +13,9 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   libbz2-dev libreadline-dev libsqlite3-dev curl \
   libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev \
   sudo git aria2
-ARG USERNAME
+ARG RUNTIME_USERNAME
 RUN --mount=type=bind,source=scripts/add-nonroot-user.sh,target=/tmp/add-nonroot-user.sh \
-  bash /tmp/add-nonroot-user.sh "${USERNAME}"
+  bash /tmp/add-nonroot-user.sh "${RUNTIME_USERNAME}"
 
 # Download ffmpeg and pretrained models and repo
 FROM base as downloader
@@ -26,13 +26,13 @@ RUN curl -kLo "ffmpeg.tar.xz" \
   "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n6.1-latest-linux64-lgpl-shared-6.1.tar.xz" && \
   tar axf "ffmpeg.tar.xz" && \
   mv ffmpeg-* /opt/ffmpeg && \
-  chown -R ${USERNAME}:${USERNAME} /opt/ffmpeg && \
+  chown -R ${RUNTIME_USERNAME}:${RUNTIME_USERNAME} /opt/ffmpeg && \
   rm "ffmpeg.tar.xz"
 # Download repo
 USER root
 WORKDIR /
 RUN git clone --depth 1 -b "${RVC_TAG}" "${RVC_REPO}" /app && \
-  chown -R ${USERNAME}:${USERNAME} /app
+  chown -R ${RUNTIME_USERNAME}:${RUNTIME_USERNAME} /app
 # Download pretrained models
 WORKDIR /app
 RUN mkdir assets/pretrained_v2 assets/uvr5_weights assets/hubert assets/rmvpe -p
@@ -43,7 +43,7 @@ RUN --mount=type=bind,source=pretrained_models.txt,target=/tmp/pretrained_models
 FROM base as python_builder
 ARG PYTHON_VERSION
 
-USER ${USERNAME}
+USER ${RUNTIME_USERNAME}
 WORKDIR /tmp
 RUN curl -kLO "https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tar.xz" && \
   tar axf "Python-${PYTHON_VERSION}.tar.xz" && \
@@ -51,38 +51,44 @@ RUN curl -kLO "https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTH
 
 WORKDIR /tmp/Python-${PYTHON_VERSION}
 USER root
-# RUN ./configure --with-lto --with-ensurepip --enable-optimizations --enable-shared --prefix="/opt/python${PYTHON_VERSION}" && \
-RUN ./configure --with-ensurepip --enable-optimizations --enable-shared --prefix="/opt/python${PYTHON_VERSION}" && \
+RUN ./configure \
+  --with-lto \
+  --with-ensurepip \
+  --enable-optimizations \
+  --enable-loadable-sqlite-extensions \
+  --enable-ipv6 \
+  --enable-shared \
+  --prefix="/opt/python${PYTHON_VERSION}" && \
   make -j$(nproc) && \
   make install && \
-  chown -R ${USERNAME}:${USERNAME} "/opt/python${PYTHON_VERSION}" && \
+  chown -R ${RUNTIME_USERNAME}:${RUNTIME_USERNAME} "/opt/python${PYTHON_VERSION}" && \
   cd .. && rm -fr "Python-${PYTHON_VERSION}"
 WORKDIR /tmp
 
-FROM ubuntu:20.04 as cuda_base
-# FROM nvidia/cuda:11.6.2-cudnn8-runtime-ubuntu20.04 as cuda_base
+# FROM ubuntu:20.04 as cuda_base
+FROM nvidia/cuda:11.6.2-cudnn8-runtime-ubuntu20.04 as cuda_base
 
-ARG USERNAME
+ARG RUNTIME_USERNAME
 ARG PYTHON_VERSION
 
 USER root
 # add nonroot user
 RUN --mount=type=bind,source=scripts/add-nonroot-user.sh,target=/tmp/add-nonroot-user.sh \
-  bash /tmp/add-nonroot-user.sh "${USERNAME}"
+  bash /tmp/add-nonroot-user.sh "${RUNTIME_USERNAME}"
 # Copy python
-COPY --from=python_builder --chown=${USERNAME}:${USERNAME} \
+COPY --from=python_builder --chown=${RUNTIME_USERNAME}:${RUNTIME_USERNAME} \
   /opt/python${PYTHON_VERSION} /opt/python${PYTHON_VERSION}
 RUN echo "/opt/python${PYTHON_VERSION}/lib" > /etc/ld.so.conf.d/libpython.conf && \
   ldconfig
 # Copy repo
-COPY --from=downloader --chown=${USERNAME}:${USERNAME} \
+COPY --from=downloader --chown=${RUNTIME_USERNAME}:${RUNTIME_USERNAME} \
   /app /app
 WORKDIR /app
 ENV PATH="/opt/python${PYTHON_VERSION}/bin:/opt/ffmpeg/bin:${PATH}"
 
 FROM cuda_base as venv_builder
 
-ARG USERNAME
+ARG RUNTIME_USERNAME
 ARG PYTHON_VERSION
 
 RUN --mount=type=cache,target=${HOME}/.cache/pip,sharing=locked \
@@ -100,19 +106,23 @@ RUN --mount=type=cache,target=${HOME}/.cache/pip,sharing=locked \
 
 FROM cuda_base as final
 
-ARG USERNAME
+ARG RUNTIME_USERNAME
 ARG PYTHON_VERSION
 
-COPY --from=downloader --chown=${USERNAME}:${USERNAME} \
+COPY --from=downloader --chown=${RUNTIME_USERNAME}:${RUNTIME_USERNAME} \
   /opt/ffmpeg /opt/ffmpeg
-# COPY --from=downloader --chown=${USERNAME}:${USERNAME} \
+# COPY --from=downloader --chown=${RUNTIME_USERNAME}:${RUNTIME_USERNAME} \
 #   /app /app
-COPY --from=venv_builder --chown=${USERNAME}:${USERNAME} \
+COPY --from=venv_builder --chown=${RUNTIME_USERNAME}:${RUNTIME_USERNAME} \
   /app/venv /app/venv
 
-USER ${USERNAME}
+USER ${RUNTIME_USERNAME}
 EXPOSE 7865
 # WORKDIR /app
 
-VOLUME [ "/app/weights", "/app/opt" ]
+VOLUME [ \
+  "/app/assets", \
+  "/app/opt", \
+  "/app/logs", \
+]
 CMD ["/app/venv/bin/python3", "infer-web.py"]
